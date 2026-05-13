@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Small Business Stock Manager</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body{
+      background:#f4f6f9;
+      padding:20px;
+      color:#333;
+    }
+
+    h1{
+      margin-bottom:20px;
+    }
+
+    .container{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:20px;
+    }
+
+    .card{
+      background:white;
+      padding:20px;
+      border-radius:12px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    input, select{
+      width:100%;
+      padding:10px;
+      margin-top:10px;
+      border:1px solid #ccc;
+      border-radius:8px;
+    }
+
+    button{
+      margin-top:10px;
+      padding:10px 15px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:bold;
+    }
+
+    .add-btn{
+      background:#007bff;
+      color:white;
+    }
+
+    .sell-btn{
+      background:#28a745;
+      color:white;
+    }
+
+    .delete-btn{
+      background:#dc3545;
+      color:white;
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      margin-top:15px;
+    }
+
+    th, td{
+      padding:12px;
+      border-bottom:1px solid #ddd;
+      text-align:center;
+    }
+
+    th{
+      background:#f0f0f0;
+    }
+
+    .low-stock{
+      color:red;
+      font-weight:bold;
+    }
+
+    .filter-row{
+      display:flex;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    @media(max-width:900px){
+      .container{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📦 Small Business Stock Organizer</h1>
+
+  <div class="container">
+
+    <!-- Add Product -->
+    <div class="card">
+      <h2>Add Product</h2>
+
+      <input type="text" id="productName" placeholder="Product Name">
+
+      <input type="text" id="category" placeholder="Category">
+
+      <input type="number" id="quantity" placeholder="Stock Quantity">
+
+      <input type="number" id="price" placeholder="Selling Price">
+
+      <button class="add-btn" onclick="addProduct()">Add Product</button>
+    </div>
+
+    <!-- Sales Analysis -->
+    <div class="card">
+      <h2>Sales Analysis</h2>
+
+      <div class="filter-row">
+        <input type="date" id="startDate">
+        <input type="date" id="endDate">
+      </div>
+
+      <button class="add-btn" onclick="updateChart()">Analyze</button>
+
+      <canvas id="salesChart"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Product Table -->
+  <div class="card" style="margin-top:20px;">
+    <h2>Stock Inventory</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Category</th>
+          <th>Stock</th>
+          <th>Sold</th>
+          <th>Price</th>
+          <th>Revenue</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody id="productTable"></tbody>
+    </table>
+  </div>
+
+<script>
+
+let products = JSON.parse(localStorage.getItem("products")) || [];
+
+function saveData(){
+  localStorage.setItem("products", JSON.stringify(products));
+}
+
+function addProduct(){
+
+  const name = document.getElementById("productName").value;
+  const category = document.getElementById("category").value;
+  const quantity = parseInt(document.getElementById("quantity").value);
+  const price = parseFloat(document.getElementById("price").value);
+
+  if(!name || !category || !quantity || !price){
+    alert("Please fill all fields");
+    return;
+  }
+
+  products.push({
+    id: Date.now(),
+    name,
+    category,
+    quantity,
+    sold: 0,
+    price,
+    salesHistory:[]
+  });
+
+  saveData();
+  renderTable();
+
+  document.getElementById("productName").value = "";
+  document.getElementById("category").value = "";
+  document.getElementById("quantity").value = "";
+  document.getElementById("price").value = "";
+}
+
+function renderTable(){
+
+  const table = document.getElementById("productTable");
+
+  table.innerHTML = "";
+
+  products.forEach((product,index)=>{
+
+    const revenue = (product.sold * product.price).toFixed(2);
+
+    table.innerHTML += `
+      <tr>
+        <td>${product.name}</td>
+        <td>${product.category}</td>
+
+        <td class="${product.quantity <= 5 ? 'low-stock' : ''}">
+          ${product.quantity}
+        </td>
+
+        <td>${product.sold}</td>
+
+        <td>$${product.price}</td>
+
+        <td>$${revenue}</td>
+
+        <td>
+          <button class="sell-btn" onclick="sellItem(${index})">
+            Sold 1
+          </button>
+
+          <button class="delete-btn" onclick="deleteProduct(${index})">
+            Delete
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function sellItem(index){
+
+  if(products[index].quantity <= 0){
+    alert("Out of stock!");
+    return;
+  }
+
+  products[index].quantity -= 1;
+  products[index].sold += 1;
+
+  products[index].salesHistory.push({
+    date:new Date().toISOString(),
+    amount:1
+  });
+
+  saveData();
+  renderTable();
+  updateChart();
+}
+
+function deleteProduct(index){
+
+  if(confirm("Delete this product?")){
+    products.splice(index,1);
+    saveData();
+    renderTable();
+    updateChart();
+  }
+}
+
+let chart;
+
+function updateChart(){
+
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+
+  let salesPerProduct = {};
+
+  products.forEach(product=>{
+
+    salesPerProduct[product.name] = 0;
+
+    product.salesHistory.forEach(sale=>{
+
+      const saleDate = new Date(sale.date);
+
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+
+      if(
+        (!start || saleDate >= start) &&
+        (!end || saleDate <= end)
+      ){
+        salesPerProduct[product.name] += sale.amount;
+      }
+    });
+  });
+
+  const labels = Object.keys(salesPerProduct);
+  const data = Object.values(salesPerProduct);
+
+  const ctx = document.getElementById("salesChart");
+
+  if(chart){
+    chart.destroy();
+  }
+
+  chart = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:labels,
+      datasets:[{
+        label:'Products Sold',
+        data:data
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{
+          display:true
+        }
+      }
+    }
+  });
+}
+
+renderTable();
+updateChart();
+
+</script>
+
+</body>
+</html>
