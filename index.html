@@ -1,168 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Stock Manager Pro</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<meta charset="UTF-8">
+<title>Stock & Sales Manager</title>
 <style>
-body {font-family: Arial; background:#f4f6f9; padding:20px;}
-.container {display:grid; grid-template-columns:1fr 1fr; gap:20px;}
-.card {background:#fff; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-input {width:100%; padding:8px; margin-top:8px;}
-button {padding:8px 10px; margin-top:8px; border:none; cursor:pointer; border-radius:6px;}
-.add {background:#007bff; color:white;}
-.sell {background:#28a745; color:white;}
-.delete {background:#dc3545; color:white;}
-table {width:100%; margin-top:15px; border-collapse:collapse;}
-th,td {padding:8px; border-bottom:1px solid #ddd; text-align:center;}
-.history {font-size:12px; text-align:left;}
-@media(max-width:800px){.container{grid-template-columns:1fr;}}
+  body { font-family: Arial; margin: 20px; }
+  input, button { margin: 5px; padding: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  th { background: #f2f2f2; }
 </style>
 </head>
 
 <body>
 
-<h2>📦 Stock Manager Pro (Sales Tracking)</h2>
+<h2>📦 Stock & Sales Manager</h2>
 
-<div class="container">
+<!-- STOCK SECTION -->
+<h3>Add Stock</h3>
+<input type="text" id="stockName" placeholder="Product Name">
+<input type="number" id="stockQty" placeholder="Quantity">
+<button onclick="addStock()">Add Stock</button>
 
-<!-- ADD PRODUCT -->
-<div class="card">
-<h3>Add Product</h3>
-<input id="name" placeholder="Product Name">
-<input id="category" placeholder="Category">
-<input id="qty" type="number" placeholder="Stock Quantity">
-<input id="price" type="number" placeholder="Price">
-<button class="add" onclick="addProduct()">Add</button>
-</div>
-
-<!-- SELL PRODUCT -->
-<div class="card">
-<h3>Record Sale</h3>
-<select id="productSelect"></select>
-<input id="seller" placeholder="Seller Name">
-<input id="buyer" placeholder="Buyer Name">
-<input id="address" placeholder="Buyer Address">
-<button class="sell" onclick="sellItem()">Record Sale</button>
-</div>
-
-</div>
-
-<!-- TABLE -->
-<div class="card">
-<h3>Inventory</h3>
-<table>
-<thead>
-<tr>
-<th>Product</th>
-<th>Stock</th>
-<th>Sold</th>
-<th>Sales History</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody id="table"></tbody>
+<h3>Current Stock</h3>
+<table id="stockTable">
+  <tr>
+    <th>Product</th>
+    <th>Quantity</th>
+  </tr>
 </table>
-</div>
+
+<hr>
+
+<!-- SALES SECTION -->
+<h3>Record Sale</h3>
+
+<input type="text" id="product" placeholder="Product Name">
+<input type="number" id="qty" placeholder="Quantity Sold">
+
+<input type="text" id="buyerName" placeholder="Buyer Name">
+<input type="text" id="buyerAddress" placeholder="Buyer Address">
+
+<input type="text" id="sellerName" placeholder="Seller Name">
+<input type="text" id="sellerBranch" placeholder="Seller Branch">
+
+<button onclick="recordSale()">Submit Sale</button>
+
+<h3>Sales History</h3>
+<table id="salesTable">
+  <tr>
+    <th>Time</th>
+    <th>Product</th>
+    <th>Qty</th>
+    <th>Buyer</th>
+    <th>Address</th>
+    <th>Seller</th>
+    <th>Branch</th>
+  </tr>
+</table>
 
 <script>
+// ================= STOCK =================
+function addStock() {
+  let name = document.getElementById("stockName").value;
+  let qty = parseInt(document.getElementById("stockQty").value);
 
-let products = JSON.parse(localStorage.getItem("products")) || [];
+  let stock = JSON.parse(localStorage.getItem("stock")) || {};
 
-function save(){
-  localStorage.setItem("products", JSON.stringify(products));
-}
-
-function addProduct(){
-  products.push({
-    id:Date.now(),
-    name:document.getElementById("name").value,
-    category:document.getElementById("category").value,
-    stock:parseInt(document.getElementById("qty").value),
-    sold:0,
-    price:parseFloat(document.getElementById("price").value),
-    history:[]
-  });
-
-  save();
-  render();
-}
-
-function sellItem(){
-  let index = document.getElementById("productSelect").value;
-  if(index === "") return;
-
-  let p = products[index];
-
-  if(p.stock <= 0){
-    alert("Out of stock");
-    return;
+  if (!stock[name]) {
+    stock[name] = 0;
   }
 
-  p.stock -= 1;
-  p.sold += 1;
+  stock[name] += qty;
 
-  p.history.push({
-    time:new Date().toLocaleString(),
-    seller:document.getElementById("seller").value,
-    buyer:document.getElementById("buyer").value,
-    address:document.getElementById("address").value
-  });
+  localStorage.setItem("stock", JSON.stringify(stock));
 
-  save();
-  render();
+  displayStock();
 }
 
-function render(){
+// ================= DISPLAY STOCK =================
+function displayStock() {
+  let stock = JSON.parse(localStorage.getItem("stock")) || {};
 
-  // dropdown
-  let sel = document.getElementById("productSelect");
-  sel.innerHTML = "";
+  let table = document.getElementById("stockTable");
 
-  products.forEach((p,i)=>{
-    sel.innerHTML += `<option value="${i}">${p.name}</option>`;
+  table.innerHTML = `
+    <tr>
+      <th>Product</th>
+      <th>Quantity</th>
+    </tr>
+  `;
+
+  for (let item in stock) {
+    let row = table.insertRow();
+    row.innerHTML = `
+      <td>${item}</td>
+      <td>${stock[item]}</td>
+    `;
+  }
+}
+
+// ================= RECORD SALE =================
+function recordSale() {
+  let product = document.getElementById("product").value;
+  let qty = parseInt(document.getElementById("qty").value);
+
+  let buyerName = document.getElementById("buyerName").value;
+  let buyerAddress = document.getElementById("buyerAddress").value;
+
+  let sellerName = document.getElementById("sellerName").value;
+  let sellerBranch = document.getElementById("sellerBranch").value;
+
+  let stock = JSON.parse(localStorage.getItem("stock")) || {};
+
+  // reduce stock
+  if (stock[product]) {
+    stock[product] -= qty;
+    if (stock[product] < 0) stock[product] = 0;
+  }
+
+  localStorage.setItem("stock", JSON.stringify(stock));
+
+  // save sale
+  let sales = JSON.parse(localStorage.getItem("sales")) || [];
+
+  sales.push({
+    time: new Date().toLocaleString(),
+    product,
+    qty,
+    buyerName,
+    buyerAddress,
+    sellerName,
+    sellerBranch
   });
 
-  // table
-  let table = document.getElementById("table");
-  table.innerHTML = "";
+  localStorage.setItem("sales", JSON.stringify(sales));
 
-  products.forEach((p,i)=>{
+  displayStock();
+  displaySales();
+}
 
-    let historyHTML = p.history.map(h=>
-      `<div class="history">
-        🕒 ${h.time}<br>
-        👤 Seller: ${h.seller}<br>
-        🧑 Buyer: ${h.buyer}<br>
-        📍 ${h.address}
-      </div><hr>`
-    ).join("");
+// ================= DISPLAY SALES =================
+function displaySales() {
+  let sales = JSON.parse(localStorage.getItem("sales")) || [];
 
-    table.innerHTML += `
-      <tr>
-        <td>${p.name}</td>
-        <td>${p.stock}</td>
-        <td>${p.sold}</td>
-        <td>${historyHTML || "No sales yet"}</td>
-        <td>
-          <button class="delete" onclick="del(${i})">Delete</button>
-        </td>
-      </tr>
+  let table = document.getElementById("salesTable");
+
+  table.innerHTML = `
+    <tr>
+      <th>Time</th>
+      <th>Product</th>
+      <th>Qty</th>
+      <th>Buyer</th>
+      <th>Address</th>
+      <th>Seller</th>
+      <th>Branch</th>
+    </tr>
+  `;
+
+  sales.forEach(s => {
+    let row = table.insertRow();
+    row.innerHTML = `
+      <td>${s.time}</td>
+      <td>${s.product}</td>
+      <td>${s.qty}</td>
+      <td>${s.buyerName}</td>
+      <td>${s.buyerAddress}</td>
+      <td>${s.sellerName}</td>
+      <td>${s.sellerBranch}</td>
     `;
   });
 }
 
-function del(i){
-  products.splice(i,1);
-  save();
-  render();
-}
-
-render();
-
+// ================= LOAD ON START =================
+window.onload = function () {
+  displayStock();
+  displaySales();
+};
 </script>
 
 </body>
